@@ -12,5 +12,6 @@ thunderstore/plugins/runtimes/
 thunderstore/plugins/ValheimUpscaler.Recon.dll
 OptiScaler.dll
 ValheimUpscaler.Recon.dll
+package.py
 
 

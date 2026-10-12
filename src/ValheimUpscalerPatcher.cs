@@ -149,7 +149,82 @@ namespace ValheimUpscalerPatcher
                 }
             }
 
-            // 4. Eagerly load dxgi.dll so DirectX 12 hooks are established before D3D12 device creation
+            // 4. Deploy ValheimUpscalerNative.dll into valheim_Data\Plugins\x86_64
+            try
+            {
+                string unityPluginsDir = Path.Combine(gameDir, "valheim_Data", "Plugins", "x86_64");
+                string nativeSrc = null;
+
+                if (!string.IsNullOrEmpty(sourceDir))
+                {
+                    string candidate = Path.Combine(sourceDir, "ValheimUpscalerNative.dll");
+                    if (File.Exists(candidate)) nativeSrc = candidate;
+                }
+
+                if (string.IsNullOrEmpty(nativeSrc) && Directory.Exists(bepDir))
+                {
+                    string[] candidates = new string[]
+                    {
+                        Path.Combine(bepDir, "plugins", "runtimes", "ValheimUpscalerNative.dll"),
+                        Path.Combine(bepDir, "plugins", "ValheimUpscalerNative.dll"),
+                        Path.Combine(bepDir, "plugins", "native", "ValheimUpscalerNative.dll"),
+                        Path.Combine(bepDir, "plugins", "native", "valheim_Data", "Plugins", "x86_64", "ValheimUpscalerNative.dll")
+                    };
+                    foreach (string c in candidates)
+                    {
+                        if (File.Exists(c))
+                        {
+                            nativeSrc = c;
+                            break;
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(nativeSrc))
+                    {
+                        string[] foundNative = Directory.GetFiles(bepDir, "ValheimUpscalerNative.dll", SearchOption.AllDirectories);
+                        if (foundNative.Length > 0)
+                        {
+                            nativeSrc = foundNative[0];
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(nativeSrc) && File.Exists(nativeSrc))
+                {
+                    if (!Directory.Exists(unityPluginsDir))
+                    {
+                        Directory.CreateDirectory(unityPluginsDir);
+                    }
+                    string nativeDst = Path.Combine(unityPluginsDir, "ValheimUpscalerNative.dll");
+                    bool needsCopy = !File.Exists(nativeDst);
+                    if (!needsCopy)
+                    {
+                        FileInfo fiSrc = new FileInfo(nativeSrc);
+                        FileInfo fiDst = new FileInfo(nativeDst);
+                        if (fiSrc.Length != fiDst.Length) needsCopy = true;
+                    }
+
+                    if (needsCopy)
+                    {
+                        File.Copy(nativeSrc, nativeDst, true);
+                        Console.WriteLine("[ValheimUpscalerPatcher] Auto-deployed ValheimUpscalerNative.dll to: " + nativeDst);
+                    }
+                }
+                else
+                {
+                    string currentNative = Path.Combine(unityPluginsDir, "ValheimUpscalerNative.dll");
+                    if (!File.Exists(currentNative))
+                    {
+                        Console.WriteLine("[ValheimUpscalerPatcher] Warning: ValheimUpscalerNative.dll not found in BepInEx packages. Native D3D12 upscaler hooks will be disabled until it is placed in valheim_Data\\Plugins\\x86_64\\.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[ValheimUpscalerPatcher] Error deploying ValheimUpscalerNative.dll: " + ex.Message);
+            }
+
+            // 5. Eagerly load dxgi.dll so DirectX 12 hooks are established before D3D12 device creation
             try
             {
                 string dxgiPath = Path.Combine(gameDir, "dxgi.dll");

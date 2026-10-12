@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace ValheimUpscalerUI
 {
-    [BepInPlugin("com.valheim.upscalerui", "Valheim Upscaler Settings UI", "1.1.2")]
+    [BepInPlugin("com.valheim.upscalerui", "Valheim Upscaler Settings UI", "1.1.3")]
     public class UpscalerUIPlugin : BaseUnityPlugin
     {
         public static UpscalerUIPlugin Instance;
@@ -158,6 +158,77 @@ namespace ValheimUpscalerUI
                 if (anyDeployed)
                 {
                     Debug.Log("[ValheimUpscalerUI] All native upscaler runtimes successfully deployed!");
+                }
+
+                // 3. Deploy ValheimUpscalerNative.dll into valheim_Data/Plugins/x86_64
+                try
+                {
+                    string unityPluginsDir = Path.Combine(Application.dataPath, "Plugins", "x86_64");
+                    string nativeSrc = null;
+                    string[] candidatePaths = new string[]
+                    {
+                        Path.Combine(pluginDir, "ValheimUpscalerNative.dll"),
+                        Path.Combine(pluginDir, "runtimes", "ValheimUpscalerNative.dll"),
+                        Path.Combine(pluginDir, "native", "ValheimUpscalerNative.dll"),
+                        Path.Combine(pluginDir, "native", "valheim_Data", "Plugins", "x86_64", "ValheimUpscalerNative.dll")
+                    };
+
+                    foreach (string c in candidatePaths)
+                    {
+                        if (File.Exists(c))
+                        {
+                            nativeSrc = c;
+                            break;
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(nativeSrc))
+                    {
+                        string bepRoot = Paths.BepInExRootPath;
+                        if (!string.IsNullOrEmpty(bepRoot) && Directory.Exists(bepRoot))
+                        {
+                            string[] found = Directory.GetFiles(bepRoot, "ValheimUpscalerNative.dll", SearchOption.AllDirectories);
+                            if (found.Length > 0)
+                            {
+                                nativeSrc = found[0];
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(nativeSrc) && File.Exists(nativeSrc))
+                    {
+                        if (!Directory.Exists(unityPluginsDir))
+                        {
+                            Directory.CreateDirectory(unityPluginsDir);
+                        }
+
+                        string nativeDst = Path.Combine(unityPluginsDir, "ValheimUpscalerNative.dll");
+                        bool needsCopy = !File.Exists(nativeDst);
+                        if (!needsCopy)
+                        {
+                            FileInfo fiSrc = new FileInfo(nativeSrc);
+                            FileInfo fiDst = new FileInfo(nativeDst);
+                            if (fiSrc.Length != fiDst.Length) needsCopy = true;
+                        }
+
+                        if (needsCopy)
+                        {
+                            File.Copy(nativeSrc, nativeDst, true);
+                            Debug.Log("[ValheimUpscalerUI] Auto-deployed ValheimUpscalerNative.dll to Unity plugins: " + nativeDst);
+                        }
+                    }
+                    else
+                    {
+                        string currentNative = Path.Combine(unityPluginsDir, "ValheimUpscalerNative.dll");
+                        if (!File.Exists(currentNative))
+                        {
+                            Debug.LogWarning("[ValheimUpscalerUI] ValheimUpscalerNative.dll not found in plugin package or valheim_Data/Plugins/x86_64/. Native upscaling will fall back to bilinear stretch until this file is installed.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[ValheimUpscalerUI] Error deploying ValheimUpscalerNative.dll: " + ex.Message);
                 }
             }
             catch (Exception ex)
