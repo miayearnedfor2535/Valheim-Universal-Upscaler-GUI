@@ -1,7 +1,7 @@
 # Valheim Universal Upscaler GUI
 
 <p align="center">
-  <img src="assets/banner.png" alt="Valheim Universal Upscaler Banner" width="850">
+  <img src="https://raw.githubusercontent.com/Roskud/Valheim-Universal-Upscaler-GUI/main/assets/banner.png" alt="Valheim Universal Upscaler Banner" width="850">
 </p>
 
 <p align="center">

@@ -51,9 +51,16 @@ namespace ValheimUpscalerPatcher
                 string patcherLocation = typeof(Patcher).Assembly.Location;
                 if (!string.IsNullOrEmpty(patcherLocation) && File.Exists(patcherLocation))
                 {
-                    // Patcher is located at <BepInEx>\patchers\ValheimUpscalerPatcher.dll
-                    string patchersDir = Path.GetDirectoryName(patcherLocation);
-                    bepDir = Path.GetDirectoryName(patchersDir);
+                    DirectoryInfo cur = new DirectoryInfo(Path.GetDirectoryName(patcherLocation));
+                    while (cur != null)
+                    {
+                        if (cur.Name.Equals("BepInEx", StringComparison.OrdinalIgnoreCase))
+                        {
+                            bepDir = cur.FullName;
+                            break;
+                        }
+                        cur = cur.Parent;
+                    }
                 }
             }
             catch { }
@@ -71,7 +78,16 @@ namespace ValheimUpscalerPatcher
                     if (args[i] == "--doorstop-target-assembly" && i + 1 < args.Length)
                     {
                         string preloaderPath = args[i + 1];
-                        bepDir = Path.GetDirectoryName(Path.GetDirectoryName(preloaderPath));
+                        DirectoryInfo cur = new DirectoryInfo(Path.GetDirectoryName(preloaderPath));
+                        while (cur != null)
+                        {
+                            if (cur.Name.Equals("BepInEx", StringComparison.OrdinalIgnoreCase))
+                            {
+                                bepDir = cur.FullName;
+                                break;
+                            }
+                            cur = cur.Parent;
+                        }
                         break;
                     }
                 }
@@ -83,7 +99,7 @@ namespace ValheimUpscalerPatcher
             {
                 try
                 {
-                    string[] found = Directory.GetFiles(bepDir, "dxgi.dll", SearchOption.AllDirectories);
+                    string[] found = Directory.GetFiles(bepDir, "OptiScaler.ini", SearchOption.AllDirectories);
                     foreach (string f in found)
                     {
                         string dir = Path.GetDirectoryName(f);
@@ -97,56 +113,78 @@ namespace ValheimUpscalerPatcher
                 catch { }
             }
 
-            if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
+            if (!string.IsNullOrEmpty(sourceDir) && Directory.Exists(sourceDir))
             {
-                Console.WriteLine("[ValheimUpscalerPatcher] Native runtimes folder not found in: " + bepDir);
-                return;
-            }
-
-            string[] files = new string[]
-            {
-                "dxgi.dll",
-                "OptiScaler.ini",
-                "OptiScaler.dll",
-                "amd_fidelityfx_dx12.dll",
-                "amd_fidelityfx_framegeneration_dx12.dll",
-                "amd_fidelityfx_upscaler_dx12.dll",
-                "libxess.dll",
-                "libxess_fg.dll",
-                "fakenvapi.dll",
-                "fakenvapi.ini"
-            };
-
-            foreach (string file in files)
-            {
-                string src = Path.Combine(sourceDir, file);
-                string dst = Path.Combine(gameDir, file);
-                if (File.Exists(src))
+                string[] files = new string[]
                 {
-                    try
+                    "dxgi.dll",
+                    "version.dll",
+                    "OptiScaler.ini",
+                    "OptiScaler.dll",
+                    "amd_fidelityfx_dx12.dll",
+                    "amd_fidelityfx_framegeneration_dx12.dll",
+                    "amd_fidelityfx_upscaler_dx12.dll",
+                    "libxess.dll",
+                    "libxess_fg.dll",
+                    "fakenvapi.dll",
+                    "fakenvapi.ini",
+                    "nvngx_dlss.dll",
+                    "nvngx_dlssd.dll",
+                    "nvngx_dlssg.dll",
+                    "nvngx_dlssnr.dll"
+                };
+
+                foreach (string file in files)
+                {
+                    string src = Path.Combine(sourceDir, file);
+                    string dst = Path.Combine(gameDir, file);
+                    if (File.Exists(src))
                     {
-                        bool needsCopy = !File.Exists(dst);
-                        if (!needsCopy)
+                        try
                         {
-                            FileInfo fiSrc = new FileInfo(src);
-                            FileInfo fiDst = new FileInfo(dst);
-                            if (fiSrc.Length != fiDst.Length)
+                            bool needsCopy = !File.Exists(dst);
+                            if (!needsCopy)
                             {
-                                needsCopy = true;
+                                FileInfo fiSrc = new FileInfo(src);
+                                FileInfo fiDst = new FileInfo(dst);
+                                if (fiSrc.Length != fiDst.Length)
+                                {
+                                    needsCopy = true;
+                                }
+                            }
+
+                            if (needsCopy)
+                            {
+                                File.Copy(src, dst, true);
+                                Console.WriteLine("[ValheimUpscalerPatcher] Auto-deployed: " + file);
                             }
                         }
-
-                        if (needsCopy)
+                        catch (Exception ex)
                         {
-                            File.Copy(src, dst, true);
-                            Console.WriteLine("[ValheimUpscalerPatcher] Auto-deployed: " + file);
+                            Console.WriteLine("[ValheimUpscalerPatcher] Deploy error for " + file + ": " + ex.Message);
                         }
                     }
-                    catch (Exception ex)
+                }
+
+                // Copy sl_plugins if present
+                try
+                {
+                    string slSrc = Path.Combine(sourceDir, "sl_plugins");
+                    if (Directory.Exists(slSrc))
                     {
-                        Console.WriteLine("[ValheimUpscalerPatcher] Deploy error for " + file + ": " + ex.Message);
+                        string slDst = Path.Combine(gameDir, "sl_plugins");
+                        if (!Directory.Exists(slDst)) Directory.CreateDirectory(slDst);
+                        foreach (string sf in Directory.GetFiles(slSrc, "*.dll"))
+                        {
+                            string target = Path.Combine(slDst, Path.GetFileName(sf));
+                            if (!File.Exists(target) || new FileInfo(sf).Length != new FileInfo(target).Length)
+                            {
+                                File.Copy(sf, target, true);
+                            }
+                        }
                     }
                 }
+                catch { }
             }
 
             // 4. Deploy ValheimUpscalerNative.dll into valheim_Data\Plugins\x86_64

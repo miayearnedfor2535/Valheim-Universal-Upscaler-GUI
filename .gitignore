@@ -13,5 +13,13 @@ thunderstore/plugins/ValheimUpscaler.Recon.dll
 OptiScaler.dll
 ValheimUpscaler.Recon.dll
 package.py
+thunderstore/plugins/native/
+disasm*
+dump_*
+investigation_*
+Mono.Cecil.dll
+check_downloads.py
+inspect_form.py
+*.html
 
 

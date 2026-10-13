@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace ValheimUpscalerUI
 {
-    [BepInPlugin("com.valheim.upscalerui", "Valheim Upscaler Settings UI", "1.1.3")]
+    [BepInPlugin("com.valheim.upscalerui", "Valheim Upscaler Settings UI", "1.1.4")]
     public class UpscalerUIPlugin : BaseUnityPlugin
     {
         public static UpscalerUIPlugin Instance;
@@ -105,6 +105,7 @@ namespace ValheimUpscalerUI
                 string[] nativeFiles = new string[]
                 {
                     "dxgi.dll",
+                    "version.dll",
                     "OptiScaler.ini",
                     "OptiScaler.dll",
                     "amd_fidelityfx_dx12.dll",
@@ -113,7 +114,11 @@ namespace ValheimUpscalerUI
                     "libxess.dll",
                     "libxess_fg.dll",
                     "fakenvapi.dll",
-                    "fakenvapi.ini"
+                    "fakenvapi.ini",
+                    "nvngx_dlss.dll",
+                    "nvngx_dlssd.dll",
+                    "nvngx_dlssg.dll",
+                    "nvngx_dlssnr.dll"
                 };
 
                 bool anyDeployed = false;
@@ -154,6 +159,26 @@ namespace ValheimUpscalerUI
                         }
                     }
                 }
+
+                try
+                {
+                    string slSrc = Path.Combine(pluginDir, "runtimes", "sl_plugins");
+                    if (!Directory.Exists(slSrc)) slSrc = Path.Combine(pluginDir, "sl_plugins");
+                    if (Directory.Exists(slSrc))
+                    {
+                        string slDst = Path.Combine(gameDir, "sl_plugins");
+                        if (!Directory.Exists(slDst)) Directory.CreateDirectory(slDst);
+                        foreach (string sf in Directory.GetFiles(slSrc, "*.dll"))
+                        {
+                            string target = Path.Combine(slDst, Path.GetFileName(sf));
+                            if (!File.Exists(target) || new FileInfo(sf).Length != new FileInfo(target).Length)
+                            {
+                                File.Copy(sf, target, true);
+                            }
+                        }
+                    }
+                }
+                catch { }
 
                 if (anyDeployed)
                 {
@@ -595,6 +620,8 @@ namespace ValheimUpscalerUI
                 }
 
                 UpdateIniKey("[FrameGen]", "Enabled", enabled ? "true" : "false");
+                UpdateIniKey("[FrameGen]", "FGInput", "fsrfg");
+                UpdateIniKey("[FrameGen]", "FGOutput", "fsrfg");
                 Debug.Log("[ValheimUpscalerUI] Applied Frame Generation: " + enabled);
             }
             catch (Exception ex)
